@@ -22,7 +22,7 @@ elseif(UNIX)
     set(CMAKE_CXX_FLAGS "-Wall -std=c++11 -Wfatal-errors -pthread")
     include_directories("/usr/include")
     link_directories("/usr/lib")
-    set(PROJECT_LINK_LIBS )
+    set(PROJECT_LINK_LIBS portaudio rtmidi)
 endif()
 
 file(GLOB SOURCES "src/*.cpp")
