@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
@@ -84,10 +85,10 @@ struct voices{
         left = 0.0f;
         right = 0.0f;
         for(int i = 0; i < 8; i++){
-            left += amplitude[i] * func(phase[i]);
-            right -= amplitude[i] * func(phase[i]);
-            phase[i] += dphase[i];
-            phase[i] = fmod(phase[i], 6.2831853f);
+            float val = amplitude[i] * func(phase[i]);
+            left += val;
+            right -= val;
+            phase[i] = fmod(phase[i] + dphase[i], 6.2831853f);
             amplitude[i] *= 0.9999f;
         }
     }
@@ -139,7 +140,7 @@ int main(){
 
     midiin->openPort(0);
     signal(SIGINT, on_sigint);
-    
+
     voices phase;
 
     midiin->setCallback(on_message, &phase);
@@ -154,8 +155,24 @@ int main(){
     err = Pa_StartStream(stream);
     tcpa(err)
 
+    int num_input = 0;
+
     while(run){
-        this_thread::sleep_for(0.1s);
+        scanf("%i", &num_input);
+        switch(num_input){
+            case 3:
+                phase.func = &sine_wave;
+                break;
+            case 2:
+                phase.func = &triangle_wave;
+                break;
+            case 1:
+                phase.func = &square_wave;
+                break;
+            default:
+            case 0:
+                phase.func = &saw_wave;
+        }
     }
 
     err = Pa_StopStream(stream);
