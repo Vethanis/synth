@@ -93,22 +93,17 @@ struct voices{
     }
 };
 
-struct midiud{
-    unsigned char note;
-    voices* voice;
-};
-
 static void on_message(double timestamp, vector<unsigned char>* pmessage, void* userdata){
     if(!pmessage)
         return;
     auto& message = *pmessage;
-    midiud* ud = (midiud*)userdata;
+    voices* voice = (voices*)userdata;
     if(message.size() == 3){
         auto& action = message[0];
         auto& note = message[1];
         auto& velocity = message[2];
         if(action == NoteOn){
-            ud->voice->onnote(note);
+            voice->onnote(note);
         }
         else if(action == NoteOff){
         }
@@ -144,12 +139,10 @@ int main(){
 
     midiin->openPort(0);
     signal(SIGINT, on_sigint);
+    
     voices phase;
 
-    midiud midiuserdata;
-    midiuserdata.note = 40;
-    midiuserdata.voice = &phase;
-    midiin->setCallback(on_message, &midiuserdata);
+    midiin->setCallback(on_message, &phase);
 
     auto err = Pa_Initialize();
     tcpa(err)
