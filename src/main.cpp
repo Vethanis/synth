@@ -77,7 +77,7 @@ struct voices{
     }
     inline void onnote(unsigned char anote){
         dphase[tail] = hz2dphase(midi2hz(anote));
-        amplitude[tail] = 1.0f;
+        amplitude[tail] = 0.5f;
         tail = (tail+1) & 7;
     }
     inline void ontick(){
