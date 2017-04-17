@@ -35,8 +35,65 @@ static void on_sigint(int signal){
     run = false;
 }
 
+inline float lerp(float a, float b, float alpha){
+    return (1.0f - alpha) * a + alpha * b;
+}
+
+float saw_wave(float phase){
+    phase /= 6.2831853f;
+    return lerp(-1.0f, 1.0f, phase);
+}
+float sine_wave(float phase){
+    return sinf(phase);
+}
+float square_wave(float phase){
+    return phase < 3.141592f ? 1.0f : -1.0f;
+}
+float triangle_wave(float phase){
+    if(phase < 3.141592f){
+        return lerp(-1.0f, 1.0f, phase / 3.141592f);
+    }
+    else{
+        phase -= 3.141592f;
+        return lerp(1.0f, -1.0f, phase / 3.141592f);
+    }
+}
+
+typedef float (*wave_func)(float);
+
+struct voices{
+    float phase[8];
+    float dphase[8];
+    float amplitude[8];
+    wave_func func;
+    int tail;
+    float out;
+    voices() : func(&saw_wave), tail(0), out(0.0f){
+        for(int i = 0; i < 8; i++){
+            amplitude[i] = 0.0f;
+            phase[i] = 0.0f;
+            dphase[i] = 0.0f;
+        }
+    }
+    inline void onnote(unsigned char anote){
+        dphase[tail] = hz2dphase(midi2hz(anote));
+        amplitude[tail] = 1.0f;
+        tail = (tail+1) & 7;
+    }
+    inline void ontick(){
+        out = 0.0f;
+        for(int i = 0; i < 8; i++){
+            out += amplitude[i] * func(phase[i]);
+            phase[i] += dphase[i];
+            phase[i] = fmod(phase[i], 6.2831853f);
+            amplitude[i] *= 0.9999f;
+        }
+    }
+};
+
 struct midiud{
     unsigned char note;
+    voices* voice;
 };
 
 static void on_message(double timestamp, vector<unsigned char>* pmessage, void* userdata){
@@ -49,38 +106,25 @@ static void on_message(double timestamp, vector<unsigned char>* pmessage, void* 
         auto& note = message[1];
         auto& velocity = message[2];
         if(action == NoteOn){
-            ud->note = note;
+            ud->voice->onnote(note);
         }
         else if(action == NoteOff){
         }
     }
 }
 
-struct audioud{
-    float left, right;
-    unsigned char* note;
-};
 
 static int on_audio(const void* inbuf, void* outbuf, unsigned long num_frames, 
     const PaStreamCallbackTimeInfo* timeinfo, PaStreamCallbackFlags flags, void* userdata){
     
     float* output = (float*)outbuf;
-    audioud* phase = (audioud*)userdata;
-    float& left = phase->left;
-    float& right = phase->right;
-    float dphase = hz2dphase(midi2hz(phase->note[0]));
+    voices* vcs = (voices*)userdata;
     for(unsigned i = 0; i < num_frames; i++){
-        *output = left;
+        *output = vcs->out;
         output++;
-        *output = right;
+        *output = vcs->out;
         output++;
-
-        left += dphase;
-        right += dphase;
-        if(left > 1.0f)
-            left -= 2.0f;
-        if(right > 1.0f)
-            right -= 2.0f;
+        vcs->ontick();
     }
 
     return 0;
@@ -98,16 +142,17 @@ int main(){
 
     midiin->openPort(0);
     signal(SIGINT, on_sigint);
+    voices phase;
 
     midiud midiuserdata;
     midiuserdata.note = 40;
+    midiuserdata.voice = &phase;
     midiin->setCallback(on_message, &midiuserdata);
 
     auto err = Pa_Initialize();
     tcpa(err)
 
     PaStream* stream = nullptr; 
-    audioud phase = {0.0f, 0.0f, &midiuserdata.note };
     err = Pa_OpenDefaultStream(&stream, 0, 2, paFloat32, sample_rate, 32, on_audio, &phase);
     tcpa(err)
 
