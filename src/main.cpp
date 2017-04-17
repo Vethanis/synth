@@ -67,8 +67,8 @@ struct voices{
     float amplitude[8];
     wave_func func;
     int tail;
-    float out;
-    voices() : func(&saw_wave), tail(0), out(0.0f){
+    float left, right;
+    voices() : func(&saw_wave), tail(0), left(0.0f), right(0.0f){
         for(int i = 0; i < 8; i++){
             amplitude[i] = 0.0f;
             phase[i] = 0.0f;
@@ -81,9 +81,11 @@ struct voices{
         tail = (tail+1) & 7;
     }
     inline void ontick(){
-        out = 0.0f;
+        left = 0.0f;
+        right = 0.0f;
         for(int i = 0; i < 8; i++){
-            out += amplitude[i] * func(phase[i]);
+            left += amplitude[i] * func(phase[i]);
+            right -= amplitude[i] * func(phase[i]);
             phase[i] += dphase[i];
             phase[i] = fmod(phase[i], 6.2831853f);
             amplitude[i] *= 0.9999f;
@@ -120,9 +122,9 @@ static int on_audio(const void* inbuf, void* outbuf, unsigned long num_frames,
     float* output = (float*)outbuf;
     voices* vcs = (voices*)userdata;
     for(unsigned i = 0; i < num_frames; i++){
-        *output = vcs->out;
+        *output = vcs->left;
         output++;
-        *output = vcs->out;
+        *output = vcs->right;
         output++;
         vcs->ontick();
     }
