@@ -16,6 +16,8 @@
 using namespace std;
 
 constexpr int sample_rate = 44100;
+constexpr float tau = 6.2831853f;
+constexpr float pi = tau / 2.0f;
 
 enum MIDI_Action{
     NoteOn = 144,
@@ -39,57 +41,87 @@ static void on_sigint(int signal){
 inline float lerp(float a, float b, float alpha){
     return (1.0f - alpha) * a + alpha * b;
 }
+inline float fract(float f){
+    return f - float(int(f));
+}
+// whiteish noise
+inline float randf() {
+    static int f = 41020057;
+    f = (f ^ 61) ^ (f >> 16);
+    f *= 9;
+    f = f ^ (f >> 4);
+    f *= 0x27d4eb2d;
+    f = f ^ (f >> 15);
+    return fract(float(f) * 2.3283064e-10f);
+}
+// bluish noise
+inline float brandf(){
+    float a = randf() * 0.5f;
+    float b = 0.5f + randf() * 0.5f;
+    return (a + b) * 0.5f;
+}
+// pinkish noise
+inline float prandf(){
+    return (randf() + randf()) * 0.5f;
+}
 
 float saw_wave(float phase){
-    phase /= 6.2831853f;
+    phase /= tau;
     return lerp(-1.0f, 1.0f, phase);
 }
 float sine_wave(float phase){
     return sinf(phase);
 }
 float square_wave(float phase){
-    return phase < 3.141592f ? 1.0f : -1.0f;
+    return phase < pi ? 1.0f : -1.0f;
 }
 float triangle_wave(float phase){
-    if(phase < 3.141592f){
-        return lerp(-1.0f, 1.0f, phase / 3.141592f);
+    if(phase < pi){
+        return lerp(-1.0f, 1.0f, phase / pi);
     }
     else{
-        phase -= 3.141592f;
-        return lerp(1.0f, -1.0f, phase / 3.141592f);
+        phase -= pi;
+        return lerp(1.0f, -1.0f, phase / pi);
     }
 }
 
 typedef float (*wave_func)(float);
 
-struct voices{
-    float phase[8];
-    float dphase[8];
-    float amplitude[8];
+struct Voice{
+    float phase, dphase, amplitude;
+};
+
+struct Voices{
+    Voice voices[8];
     wave_func func;
     int tail;
     float left, right;
-    voices() : func(&saw_wave), tail(0), left(0.0f), right(0.0f){
-        for(int i = 0; i < 8; i++){
-            amplitude[i] = 0.0f;
-            phase[i] = 0.0f;
-            dphase[i] = 0.0f;
-        }
+    Voices(){
+        memset(this, 0, sizeof(Voices));
+        func = &saw_wave;
     }
     inline void onnote(unsigned char anote){
-        dphase[tail] = hz2dphase(midi2hz(anote));
-        amplitude[tail] = 0.5f;
+        voices[tail].dphase = hz2dphase(midi2hz(anote));
+        voices[tail].amplitude = 0.5f;
         tail = (tail+1) & 7;
     }
     inline void ontick(){
         left = 0.0f;
         right = 0.0f;
         for(int i = 0; i < 8; i++){
-            float val = amplitude[i] * func(phase[i]);
-            left += val;
-            right -= val;
-            phase[i] = fmod(phase[i] + dphase[i], 6.2831853f);
-            amplitude[i] *= 0.9999f;
+            Voice& v = voices[i];
+            const float sample = func(fmod(v.phase + brandf() * v.dphase, tau));
+            const float val = v.amplitude * sample;
+            if(brandf() > 0.5f){
+                left += val;
+                right -= val;
+            }
+            else{
+                left -= val;
+                right += val;
+            }
+            v.amplitude *= 0.9999f;
+            v.phase = fmod(v.phase + v.dphase, tau);
         }
     }
 };
@@ -98,7 +130,7 @@ static void on_message(double timestamp, vector<unsigned char>* pmessage, void* 
     if(!pmessage)
         return;
     auto& message = *pmessage;
-    voices* voice = (voices*)userdata;
+    Voices* voice = (Voices*)userdata;
     if(message.size() == 3){
         auto& action = message[0];
         auto& note = message[1];
@@ -116,7 +148,7 @@ static int on_audio(const void* inbuf, void* outbuf, unsigned long num_frames,
     const PaStreamCallbackTimeInfo* timeinfo, PaStreamCallbackFlags flags, void* userdata){
     
     float* output = (float*)outbuf;
-    voices* vcs = (voices*)userdata;
+    Voices* vcs = (Voices*)userdata;
     for(unsigned i = 0; i < num_frames; i++){
         *output = vcs->left;
         output++;
@@ -129,6 +161,7 @@ static int on_audio(const void* inbuf, void* outbuf, unsigned long num_frames,
 }
 
 int main(){
+    srand((unsigned)time(0));
     unique_ptr<RtMidiIn> midiin;
     tcm( midiin = make_unique<RtMidiIn>(); )
 
@@ -141,7 +174,7 @@ int main(){
     midiin->openPort(0);
     signal(SIGINT, on_sigint);
 
-    voices phase;
+    Voices phase;
 
     midiin->setCallback(on_message, &phase);
 
@@ -160,17 +193,20 @@ int main(){
     while(run){
         scanf("%i", &num_input);
         switch(num_input){
-            case 3:
+            case 0:
+                run = false;
+                break;
+            case 1:
                 phase.func = &sine_wave;
                 break;
             case 2:
                 phase.func = &triangle_wave;
                 break;
-            case 1:
+            case 3:
                 phase.func = &square_wave;
                 break;
             default:
-            case 0:
+            case 4:
                 phase.func = &saw_wave;
         }
     }
