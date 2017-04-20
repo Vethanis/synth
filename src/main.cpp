@@ -91,7 +91,7 @@ typedef float (*wave_func)(float);
 
 struct Voice{
     float phase, dphase, env_time;
-    Voice() : phase(0.0f), dphase(0.0f), env_time(120.0f){
+    Voice() : phase(0.0f), dphase(0.1f), env_time(120.0f){
     }
 };
 
@@ -102,7 +102,7 @@ struct Voices{
     int tail;
     float left, right, g_volume;
     Voices() : func(&saw_wave), tail(0), g_volume(0.125f){
-        env.set_state(0, 0.5f, {0.0f, 0.0f, 1.0f});
+        env.set_state(0, 0.1f, {0.0f, 0.0f, 1.0f});
         env.set_state(1, 5.0f, {1.0f, 0.0f, 0.0f});
     }
     inline void onnote(unsigned char anote){
@@ -115,10 +115,11 @@ struct Voices{
         right = 0.0f;
         for(int i = 0; i < 8; i++){
             Voice& v = voices[i];
-            const float sample = func(fmod(v.phase + brandf() * v.dphase, tau));
+            const float phase = v.phase + randf() * v.dphase + tau * sine_wave(v.phase * 2.0f);
+            const float sample = func(fmod(phase, tau));
             const float env_val = env.value(v.env_time);
             const float val = sample * env_val * g_volume;
-            if(brandf() > 0.5f){
+            if(randf() > 0.5f){
                 left += val;
                 right -= val;
             }
