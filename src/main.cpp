@@ -10,6 +10,8 @@
 #include "RtMidi.h"
 #include "portaudio.h"
 
+#include "envelope.h"
+
 #define tcm(x){ try{ x } catch(RtMidiError& e){ puts("Had an exception:"); e.printMessage(); exit(1); } };
 #define tcpa(err){ if(err != paNoError){ puts(Pa_GetErrorText(err)); exit(1); } }
 
@@ -88,21 +90,24 @@ float triangle_wave(float phase){
 typedef float (*wave_func)(float);
 
 struct Voice{
-    float phase, dphase, amplitude;
+    float phase, dphase, env_time;
+    Voice() : phase(0.0f), dphase(0.0f), env_time(120.0f){
+    }
 };
 
 struct Voices{
     Voice voices[8];
     wave_func func;
+    envelope<2> env;
     int tail;
-    float left, right;
-    Voices(){
-        memset(this, 0, sizeof(Voices));
-        func = &saw_wave;
+    float left, right, g_volume;
+    Voices() : func(&saw_wave), tail(0), g_volume(0.125f){
+        env.set_state(0, 0.5f, {0.0f, 0.0f, 1.0f});
+        env.set_state(1, 5.0f, {1.0f, 0.0f, 0.0f});
     }
     inline void onnote(unsigned char anote){
         voices[tail].dphase = hz2dphase(midi2hz(anote));
-        voices[tail].amplitude = 0.5f;
+        voices[tail].env_time = 0.0f;
         tail = (tail+1) & 7;
     }
     inline void ontick(){
@@ -111,7 +116,8 @@ struct Voices{
         for(int i = 0; i < 8; i++){
             Voice& v = voices[i];
             const float sample = func(fmod(v.phase + brandf() * v.dphase, tau));
-            const float val = v.amplitude * sample;
+            const float env_val = env.value(v.env_time);
+            const float val = sample * env_val * g_volume;
             if(brandf() > 0.5f){
                 left += val;
                 right -= val;
@@ -120,8 +126,8 @@ struct Voices{
                 left -= val;
                 right += val;
             }
-            v.amplitude *= 0.9999f;
             v.phase = fmod(v.phase + v.dphase, tau);
+            v.env_time += 1.0f / sample_rate;
         }
     }
 };

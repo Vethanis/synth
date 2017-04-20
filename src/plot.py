@@ -20,20 +20,42 @@ def triangle_wave(phase):
     phase -= pi
     return lerp(1.0, -1.0, phase / pi)
 
-phase = 0.0
-nums = []
-nms = 5
-invnms = 1.0 / nms
-while phase < tau:
-    val = 0.0
-    for i in range(0, nms):
-        jphase = phase + invnms * i * dphase
-        val += sine_wave(jphase)
-    val *= invnms
-    nums.append(val)
-    phase += dphase
+def clamp(x, a, b):
+    return min(max(x, a), b)
 
-plt.plot(nums)
+def quadratic_bezier(t, p):
+    t0 = (1.0 - t) * (1.0 - t) * p[0]
+    t1 = 2.0 * (1.0 - t) * t * p[1]
+    t2 = t * t * p[2]
+    return t0 + t1 + t2
+
+def envelope(t, durations, beziers, num_states):        
+    state = 0
+    while state < num_states - 1:
+        if t < durations[state]:
+            break
+        t -= durations[state]
+        state += 1
+    normalized_time = clamp(t / durations[state], 0.0, 1.0)
+    return quadratic_bezier(normalized_time, beziers[state])
+
+t = 0.0
+dt = 0.01
+durations = [0.333, 0.5, 3.0]
+beziers = [
+    [0.0, 0.0, 1.0],
+    [1.0, 1.0, 1.0],
+    [1.0, 0.0, 0.0]
+]
+num_states = 3
+
+values = []
+
+while t < 4.0:
+    values.append(envelope(t, durations, beziers, num_states))
+    t += dt
+
+plt.plot(values)
 plt.ylabel("Amplitude")
 plt.xlabel("Sample")
 plt.show()
