@@ -2,8 +2,6 @@
 
 A WIP synthesizer using RtMidi and portaudio. 
 
-Currently it just spits two saw waves out and lists any midi note-on or note-off events.
-
 ## Dependencies
 
 * C++11 compiler
