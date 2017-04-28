@@ -41,13 +41,14 @@ def envelope(t, durations, beziers, num_states):
 
 t = 0.0
 dt = 0.01
-durations = [0.333, 0.5, 3.0]
+durations = [0.5, 0.5, 0.5, 0.5]
 beziers = [
     [0.0, 0.0, 1.0],
-    [1.0, 1.0, 1.0],
-    [1.0, 0.0, 0.0]
+    [1.0, 0.5, 0.5],
+    [0.5, 0.5, 0.5],
+    [0.5, 0.0, 0.0]
 ]
-num_states = 3
+num_states = 4
 
 values = []
 
