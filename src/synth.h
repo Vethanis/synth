@@ -20,13 +20,20 @@ struct Voice{
     }
     inline float onTick(){
         env.onTick();
-        osc.phaseModulate(modulator, 0.01f);
+        //osc.phaseModulate(modulator, 0.01f);
         modulator.onTick();
         return osc.onTick() * env.value();
     }
     inline void onInput(int input){
-        osc.onInput(input);
-        modulator.onInput(input);
+        wave_func afunc = &sine_wave;
+        if(input == 2)
+            afunc = &triangle_wave;
+        else if(input == 3)
+            afunc = &square_wave;
+        else if(input == 4)
+            afunc = &saw_wave;
+        osc.setWave(afunc);
+        modulator.func = afunc;
     }
 };
 

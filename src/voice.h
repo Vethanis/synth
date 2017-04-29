@@ -23,23 +23,6 @@ struct Oscillator{
     inline void phaseModulate(Oscillator& modulator, float amt){
         phase += amt * modulator.func(modulator.phase);
     }
-    inline void onInput(int input){
-        switch(input){
-            default:
-            case 1:
-                func = &sine_wave;
-                break;
-            case 2:
-                func = &triangle_wave;
-                break;
-            case 3:
-                func = &square_wave;
-                break;
-            case 4:
-                func = &triangle_wave;
-                break;
-        }
-    }
 };
 
 template<int num_voices>
@@ -64,25 +47,9 @@ struct MultiOscillator{
             oscs[i].phaseModulate(modulator, amt);
         }
     }
-    inline void onInput(int input){
-        wave_func func;
-        switch(input){
-            default:
-            case 1:
-                func = &sine_wave;
-                break;
-            case 2:
-                func = &triangle_wave;
-                break;
-            case 3:
-                func = &square_wave;
-                break;
-            case 4:
-                func = &triangle_wave;
-                break;
-        }
+    inline void setWave(wave_func afunc){
         for(int i = 0; i < num_voices; i++){
-            oscs[i].func = func;
+            oscs[i].func = afunc;
         }
     }
 };
