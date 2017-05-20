@@ -20,6 +20,13 @@ struct adsr{
         cur_state = 2;
         cur_time = 999.0f;
     }
+    adsr& operator=(const adsr& other){
+        for(int i = 0; i < 4; i++)
+            values[i] = other.values[i];
+        for(int i = 0; i < 3; i++)
+            durations[i] = other.durations[i];
+        return *this;
+    }
     inline void onTick(){
         cur_time += inv_sample_rate;
         // if in attack state and past attack duration

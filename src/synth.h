@@ -40,7 +40,8 @@ struct Voice{
 struct Synth{
     Voice voices[8];
     int tail;
-    Synth() : tail(0){
+    float volume;
+    Synth() : tail(0), volume(1.0f){
     }
     inline void setEnv(const adsr& env){
         for(int i = 0; i < 8; i++){
@@ -65,6 +66,7 @@ struct Synth{
         for(int i = 0; i < 8; i++){
             value += voices[i].onTick();
         }
+        value *= volume;
         float* left = buf;
         float* right = buf+1;
         *left = value;

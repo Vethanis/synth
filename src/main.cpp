@@ -11,6 +11,10 @@
 #include "portaudio.h"
 
 #include "synth.h"
+#include "myglheaders.h"
+#include "window.h"
+#include "imgui.h"
+#include "imgui_impl_glfw_gl3.h"
 
 #define tcm(x){ try{ x } catch(RtMidiError& e){ puts("Had an exception:"); e.printMessage(); exit(1); } };
 #define tcpa(err){ if(err != paNoError){ puts(Pa_GetErrorText(err)); exit(1); } }
@@ -72,30 +76,48 @@ int main(){
     midiin->setCallback(on_message, &synth);
 
     auto err = Pa_Initialize();
-    tcpa(err)
+    tcpa(err);
 
     PaStream* stream = nullptr; 
-    err = Pa_OpenDefaultStream(&stream, 0, 2, paFloat32, sample_rate, 32, on_audio, &synth);
-    tcpa(err)
+    err = Pa_OpenDefaultStream(&stream, 0, 2, paFloat32, sample_rate, 16, on_audio, &synth);
+    tcpa(err);
 
     err = Pa_StartStream(stream);
-    tcpa(err)
+    tcpa(err);
 
-    int num_input = 0;
+    auto* window = window::init(800, 600, 3, 3, "Synth");
 
-    while(run){
-        scanf("%i", &num_input);
-        if (num_input == 0){
-            run = false;
-        }
-        synth.onInput(num_input);
+    assert(ImGui_ImplGlfwGL3_Init(window, true));
+    int winflags = ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove;
+    int iwave = 1;
+    adsr env;
+    while(window::is_open(window)){
+        glfwPollEvents();
+        ImGui_ImplGlfwGL3_NewFrame();
+        ImGui::SetNextWindowPosCenter();
+        ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
+        ImGui::Begin("Synth controls", nullptr, winflags);
+        ImGui::SliderFloat("Volume", &synth.volume, 0.0f, 1.0f);
+        ImGui::SliderInt("Wave", &iwave, 1, 4);
+        ImGui::SliderFloat3("Envelope Value", env.values, 0.0f, 1.0f);
+        ImGui::SliderFloat3("Envelope Durations", env.durations, 0.01f, 5.0f);
+        synth.onInput(iwave);
+        synth.setEnv(env);
+
+        ImGui::End();
+        ImGui::Render();
+        window::swap(window);
     }
 
+    ImGui_ImplGlfwGL3_Shutdown();
+
     err = Pa_StopStream(stream);
-    tcpa(err)
+    tcpa(err);
 
     err = Pa_Terminate();
-    tcpa(err)
+    tcpa(err);
 
     return 0;
 }
