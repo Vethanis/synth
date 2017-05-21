@@ -103,12 +103,14 @@ int main(){
         ImGui::SliderInt("Wave", &iwave, 0, 3);
         ImGui::SliderInt("Modulator Wave", &imodwave, 0, 3);
         ImGui::SliderFloat("Unison Variance", &synth.params.unison_variance, 0.0f, 0.1f);
-        ImGui::SliderFloat3("Envelope Value", synth.params.env.values, 0.0f, 1.0f);
-        ImGui::SliderFloat3("Envelope Durations", synth.params.env.durations, 0.01f, 5.0f);
+        ImGui::SliderFloat("Attack", &synth.params.env.durations[0], 0.01f, 5.0f);
+        ImGui::SliderFloat("Decay", &synth.params.env.durations[1], 0.01f, 5.0f);
+        ImGui::SliderFloat("Sustain", &synth.params.env.values[2], 0.0f, 1.0f);
+        ImGui::SliderFloat("Release", &synth.params.env.durations[2], 0.01f, 5.0f);
         ImGui::SliderFloat("Modulation Amount", &synth.params.modulator_amt, 0.0f, 0.1f);
         ImGui::SliderInt("Modulator Ratio", &imodratio, 0, 10);
-        synth.setWave(waves[iwave]);
-        synth.setModulatorWave(waves[imodwave]);
+        synth.params.func = waves[iwave];
+        synth.params.mod_func = waves[imodwave];
         float modratio = 1.0f;
         for(int i = 5; i > imodratio; i--)
             modratio *= 0.5f;

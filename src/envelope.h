@@ -1,46 +1,45 @@
 #pragma once
 
 #include "constants.h"
-#include <vector>
-
-inline float quadratic_bezier(float a, float b, float t){
-    float p1 = min(a, b);
-    float t0 = (1.0f - t) * (1.0f - t) * a;
-    float t1 = 2.0f * (1.0f - t) * t * p1;
-    float t2 = t * t * b;
-    return t0 + t1 + t2;
-}
 
 struct env_params{
-    float values[4] = {0.0f, 1.0f, 0.75f, 0.0f};
-    float durations[3] = {0.01f, 0.3f, 3.0f};
+    float durations[3] = {0.01f, 0.3f, 1.0f};
+    float values[4] = {0.0f, 1.0f, 0.5f, 0.0f};
 };
 
 struct adsr{
-    int cur_state;
+    int state;
     float cur_time;
+    float last_value;
+    float last_sustain_value;
     adsr(){
-        cur_state = 2;
-        cur_time = 999.0f;
+        state = 2;
+        cur_time = 60.0f;
+        last_value = 0.0f;
+        last_sustain_value = 0.0f;
     }
-    inline void onTick(const env_params& p){
+    inline void step(const env_params& p){
         cur_time += inv_sample_rate;
-        // if in attack state and past attack duration
-        if(cur_state == 0 && cur_time > p.durations[0]){
-            cur_state = 1;
+        if(!state && cur_time > p.durations[state]){
+            state++;
             cur_time = 0.0f;
+            last_sustain_value = 1.0f;
         }
     }
     inline void onNoteOn(){
-        cur_state = 0;
+        state = 0;
         cur_time = 0.0f;
+        last_sustain_value = 0.0f;
     }
     inline void onNoteOff(){
-        cur_state = 2;
+        last_sustain_value = last_value;
+        state = 2;
         cur_time = 0.0f;
     }
     inline float value(const env_params& p){
-        float ntime = clamp(cur_time / p.durations[cur_state], 0.0f, 1.0f);
-        return quadratic_bezier(p.values[cur_state], p.values[cur_state+1], ntime);
+        float ntime = cur_time / p.durations[state];
+        ntime = clamp(ntime, 0.0f, 1.0f);
+        last_value = lerp(last_sustain_value, p.values[state+1], ntime);
+        return last_value * last_value;
     }
 };

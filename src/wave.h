@@ -14,6 +14,9 @@ inline float randf() {
     return fract(float(f) * 2.3283064e-10f);
 }
 
+float noise_wave(){
+    return randf() * 2.0f - 1.0f;
+}
 float saw_wave(float phase){
     phase /= tau;
     return lerp(-1.0f, 1.0f, phase);

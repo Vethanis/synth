@@ -4,64 +4,71 @@
 #include "constants.h"
 #include "wave.h"
 
-
 struct Oscillator{
-    float phase, dphase;
+    float phase, dphase, value;
     wave_func func;
     Oscillator() : phase(randf() * tau), dphase(randf()), func(&saw_wave){
+        value = func(phase);
     }
-    inline void setNote(unsigned char anote){
-        dphase = hz2dphase(midi2hz(anote));
+    inline void setNote(unsigned char note){
+        dphase = hz2dphase(midi2hz(note));
     }
     inline void setHz(float hz){
         dphase = hz2dphase(hz);
     }
-    inline float onTick(){
-        phase = fmod(phase + dphase, tau);
-        return func(phase);
-    }
-    inline void phaseModulate(Oscillator& modulator, float amt){
-        phase += amt * modulator.func(modulator.phase);
+    inline void step(){
+        phase += fmod(phase + dphase, tau);
+        value = func(phase);
     }
 };
 
-template<int num_voices>
-struct MultiOscillator{
-    Oscillator oscs[num_voices];
-    inline void setNote(unsigned char note, float variance){
-        float hz = midi2hz(note);
+namespace osc {
+    struct MinimalOscillator{
+        float phase, dphase;
+        MinimalOscillator() : phase(randf() * tau), dphase(randf()){
+        }
+    };
+    // functions for dealing with a collection of things with phase and dphase
+    template<typename T>
+    inline void setNote(T& oscs, unsigned char note, float variance){
+        float dphase = hz2dphase(midi2hz(note));
         for(auto& i : oscs){
-            i.setHz( hz );
-            i.dphase *= 1.0f + variance * (randf() * 2.0f - 1.0f);
+            i.dphase = dphase * (1.0f + variance * (randf() * 2.0f - 1.0f));
         }
     }
-    inline float onTick(){
+    template<typename T>
+    inline void setHz(T& oscs, float hz){
+        float dphase = hz2dphase(hz);
+        for(auto& i : oscs)
+            i.dphase = dphase;
+    }
+    template<typename T>
+    inline void step(T& oscs){
+        for(auto& i : oscs)
+            i.phase = fmod(i.phase + i.dphase, tau);
+    }
+    template<typename T>
+    inline float sample(T& oscs, wave_func func){
         float value = 0.0f;
         for(auto& i : oscs)
-            value += i.onTick();
-        return value / num_voices;
+            value += func(i.phase);
+        return value;
     }
-    inline void phaseModulate(Oscillator& modulator, float amt){        
+    template<typename T>
+    inline void phaseModulate(T& oscs, float amt){        
         for(auto& i : oscs)
-            i.phaseModulate(modulator, amt);
-    }
-    inline void setWave(wave_func afunc){
-        for(auto& i : oscs)
-            i.func = afunc;
+            i.phase += amt;
     }
 };
 
+// 18KB object; don't put many of these on the stack
 struct KarplusOscillator{
-    float* buffer;
-    int buffer_len, num_samples, cur_sample;
+    float buffer[sample_rate / 10];
+    const int buffer_len = sample_rate / 10;
+    int num_samples, cur_sample;
     KarplusOscillator(){
-        buffer_len = sample_rate / 10;
-        buffer = new float[buffer_len];
         cur_sample = 0;
         num_samples = buffer_len;
-    }
-    ~KarplusOscillator(){
-        delete[] buffer;
     }
     inline void onNote(unsigned char note){
         cur_sample = 0;
