@@ -2,79 +2,70 @@
 
 #include "voice.h"
 
+// common parameters used across voices
+struct voice_params{
+    env_params env;
+    float unison_variance=0.01f,
+        modulator_ratio=0.5f,
+        modulator_amt=0.003f,
+        volume=0.75f;
+};
+
 struct Voice{
     MultiOscillator<16> osc;
     Oscillator modulator;
     adsr env;
     unsigned char active_note;
-    inline void onNoteOn(unsigned char note, unsigned char velocity){
+    inline void onNoteOn(unsigned char note, unsigned char velocity, const voice_params& par){
         active_note = note;
         env.onNoteOn();
-        osc.setNote(note, 0.0001f);
+        osc.setNote(note, par.unison_variance);
         modulator.setNote(note);
-        modulator.dphase *= 0.5f;
+        modulator.dphase *= par.modulator_ratio;
     }
     inline void onNoteOff(){
         active_note = 0;
         env.onNoteOff();
     }
-    inline float onTick(){
-        env.onTick();
-        //osc.phaseModulate(modulator, 0.01f);
+    inline float onTick(const voice_params& par){
+        env.onTick(par.env);
+        osc.phaseModulate(modulator, par.modulator_amt);
         modulator.onTick();
-        return osc.onTick() * env.value();
-    }
-    inline void onInput(int input){
-        wave_func afunc = &sine_wave;
-        if(input == 2)
-            afunc = &triangle_wave;
-        else if(input == 3)
-            afunc = &square_wave;
-        else if(input == 4)
-            afunc = &saw_wave;
-        osc.setWave(afunc);
-        modulator.func = afunc;
+        return osc.onTick() * env.value(par.env);
     }
 };
 
+// must be power of two!
+constexpr int num_voices = 8;
+
 struct Synth{
-    Voice voices[8];
-    int tail;
-    float volume;
-    Synth() : tail(0), volume(1.0f){
-    }
-    inline void setEnv(const adsr& env){
-        for(int i = 0; i < 8; i++){
-            voices[i].env = env;
-        }
-    }
+    Voice voices[num_voices];
+    int tail=0;
+    voice_params params;
     inline void onNoteOn(unsigned char note, unsigned char velocity){
-        auto& voice = voices[tail];
-        voice.onNoteOn(note, velocity);
-        tail = (tail + 1) & 7;
+        voices[tail].onNoteOn(note, velocity, params);
+        tail = (tail + 1) & (num_voices - 1);
     }
     inline void onNoteOff(unsigned char note){
-        for(int i = 0; i < 8; i++){
-            auto& voice = voices[i];
-            if(voice.active_note == note){
-                voice.onNoteOff();
-            }
+        for(auto& i : voices){
+            if(i.active_note == note)
+                i.onNoteOff();
         }
     }
     inline void onTick(float* buf){
         float value = 0.0f;
-        for(int i = 0; i < 8; i++){
-            value += voices[i].onTick();
-        }
-        value *= volume;
-        float* left = buf;
-        float* right = buf+1;
-        *left = value;
-        *right = -*left;
+        for(auto& i : voices)
+            value += i.onTick(params);
+        value *= params.volume;
+        buf[0] = value;
+        buf[1] = -value;
     }
-    inline void onInput(int input){
-        for(int i = 0; i < 8; i++){
-            voices[i].onInput(input);
-        }
+    inline void setWave(wave_func func){
+        for(auto& i : voices)
+            i.osc.setWave(func);
+    }
+    inline void setModulatorWave(wave_func func){
+        for(auto& i : voices)
+            i.modulator.func = func;
     }
 };

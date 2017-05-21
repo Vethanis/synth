@@ -91,20 +91,30 @@ int main(){
     int winflags = ImGuiWindowFlags_NoTitleBar |
         ImGuiWindowFlags_NoResize |
         ImGuiWindowFlags_NoMove;
-    int iwave = 1;
-    adsr env;
+    int iwave = 3, imodwave = 0, imodratio = 4;
+    wave_func waves[] = { sine_wave, triangle_wave, square_wave, saw_wave };
     while(window::is_open(window)){
         glfwPollEvents();
         ImGui_ImplGlfwGL3_NewFrame();
         ImGui::SetNextWindowPosCenter();
         ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
         ImGui::Begin("Synth controls", nullptr, winflags);
-        ImGui::SliderFloat("Volume", &synth.volume, 0.0f, 1.0f);
-        ImGui::SliderInt("Wave", &iwave, 1, 4);
-        ImGui::SliderFloat3("Envelope Value", env.values, 0.0f, 1.0f);
-        ImGui::SliderFloat3("Envelope Durations", env.durations, 0.01f, 5.0f);
-        synth.onInput(iwave);
-        synth.setEnv(env);
+        ImGui::SliderFloat("Volume", &synth.params.volume, 0.0f, 1.0f, nullptr, 2.0f);
+        ImGui::SliderInt("Wave", &iwave, 0, 3);
+        ImGui::SliderInt("Modulator Wave", &imodwave, 0, 3);
+        ImGui::SliderFloat("Unison Variance", &synth.params.unison_variance, 0.0f, 0.1f);
+        ImGui::SliderFloat3("Envelope Value", synth.params.env.values, 0.0f, 1.0f);
+        ImGui::SliderFloat3("Envelope Durations", synth.params.env.durations, 0.01f, 5.0f);
+        ImGui::SliderFloat("Modulation Amount", &synth.params.modulator_amt, 0.0f, 0.1f);
+        ImGui::SliderInt("Modulator Ratio", &imodratio, 0, 10);
+        synth.setWave(waves[iwave]);
+        synth.setModulatorWave(waves[imodwave]);
+        float modratio = 1.0f;
+        for(int i = 5; i > imodratio; i--)
+            modratio *= 0.5f;
+        for(int i = 5; i < imodratio; i++)
+            modratio *= 2.0f;
+        synth.params.modulator_ratio = modratio;
 
         ImGui::End();
         ImGui::Render();

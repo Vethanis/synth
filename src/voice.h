@@ -30,27 +30,24 @@ struct MultiOscillator{
     Oscillator oscs[num_voices];
     inline void setNote(unsigned char note, float variance){
         float hz = midi2hz(note);
-        for(int i = 0; i < num_voices; i++){
-            oscs[i].setHz( hz );
-            oscs[i].dphase += variance * (randf() * 2.0f - 1.0f);
+        for(auto& i : oscs){
+            i.setHz( hz );
+            i.dphase *= 1.0f + variance * (randf() * 2.0f - 1.0f);
         }
     }
     inline float onTick(){
         float value = 0.0f;
-        for(int i = 0; i < num_voices; i++){
-            value += oscs[i].onTick();
-        }
+        for(auto& i : oscs)
+            value += i.onTick();
         return value / num_voices;
     }
     inline void phaseModulate(Oscillator& modulator, float amt){        
-        for(int i = 0; i < num_voices; i++){
-            oscs[i].phaseModulate(modulator, amt);
-        }
+        for(auto& i : oscs)
+            i.phaseModulate(modulator, amt);
     }
     inline void setWave(wave_func afunc){
-        for(int i = 0; i < num_voices; i++){
-            oscs[i].func = afunc;
-        }
+        for(auto& i : oscs)
+            i.func = afunc;
     }
 };
 
