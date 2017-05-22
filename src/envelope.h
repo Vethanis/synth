@@ -3,8 +3,8 @@
 #include "constants.h"
 
 struct env_params{
-    float durations[3] = {0.01f, 0.3f, 1.0f};
-    float values[4] = {0.0f, 1.0f, 0.5f, 0.0f};
+    float durations[3] = {0.01f, 0.3f, 4.0f};
+    float values[4] = {0.0f, 1.0f, 0.85f, 0.0f};
 };
 
 struct adsr{

@@ -6,9 +6,9 @@
 struct voice_params{
     env_params env;
     wave_func func = saw_wave, mod_func = saw_wave;
-    float unison_variance=0.01f,
+    float unison_variance=0.0004f,
         modulator_ratio=0.5f,
-        modulator_amt=0.003f,
+        modulator_amt=0.0002f,
         volume=0.75f;
 };
 
