@@ -1,17 +1,13 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include <cstdio>
-#include <cstdlib>
-#include <cmath>
-#include <memory>
 #include <csignal>
-#include <vector>
-#include <thread>
+#include <ctime>
+#include <random>
 
 #include "RtMidi.h"
 #include "portaudio.h"
 
 #include "synth.h"
-#include "myglheaders.h"
 #include "window.h"
 #include "imgui.h"
 #include "imgui_impl_glfw_gl3.h"
@@ -59,8 +55,8 @@ static int on_audio(const void* inbuf, void* outbuf, unsigned long num_frames,
 
 int main(){
     srand((unsigned)time(0));
-    unique_ptr<RtMidiIn> midiin;
-    tcm( midiin = make_unique<RtMidiIn>(); )
+    RtMidiIn* midiin;
+    tcm( midiin = new RtMidiIn(); )
 
     if(midiin->getPortCount() < 1){
         puts("No ports open, quitting.");
@@ -94,7 +90,6 @@ int main(){
     int iwave = 3, imodwave = 0, imodratio = 4;
     wave_func waves[] = { sine_wave, triangle_wave, square_wave, saw_wave };
     while(window::is_open(window)){
-        glfwPollEvents();
         ImGui_ImplGlfwGL3_NewFrame();
         ImGui::SetNextWindowPosCenter();
         ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
@@ -102,11 +97,11 @@ int main(){
         ImGui::SliderFloat("Volume", &synth.params.volume, 0.0f, 1.0f, nullptr, 2.0f);
         ImGui::SliderInt("Wave", &iwave, 0, 3);
         ImGui::SliderInt("Modulator Wave", &imodwave, 0, 3);
-        ImGui::SliderFloat("Unison Variance", &synth.params.unison_variance, 0.0f, 0.1f);
-        ImGui::SliderFloat("Attack", &synth.params.env.durations[0], 0.01f, 5.0f);
-        ImGui::SliderFloat("Decay", &synth.params.env.durations[1], 0.01f, 5.0f);
-        ImGui::SliderFloat("Sustain", &synth.params.env.values[2], 0.0f, 1.0f);
-        ImGui::SliderFloat("Release", &synth.params.env.durations[2], 0.01f, 5.0f);
+        ImGui::SliderFloat("Unison Variance", &synth.params.unison_variance, 0.0f, 0.1f, "%0.4f", 2.0f);
+        ImGui::SliderFloat("Attack", &synth.params.env.durations[0], 0.01f, 2.0f, nullptr, 2.0f);
+        ImGui::SliderFloat("Decay", &synth.params.env.durations[1], 0.01f, 5.0f, nullptr, 2.0f);
+        ImGui::SliderFloat("Sustain", &synth.params.env.values[2], 0.0f, 1.0f, nullptr, 2.0f);
+        ImGui::SliderFloat("Release", &synth.params.env.durations[2], 0.01f, 5.0f, nullptr, 2.0f);
         ImGui::SliderFloat("Modulation Amount", &synth.params.modulator_amt, 0.0f, 0.1f);
         ImGui::SliderInt("Modulator Ratio", &imodratio, 0, 10);
         synth.params.func = waves[iwave];
@@ -130,6 +125,8 @@ int main(){
 
     err = Pa_Terminate();
     tcpa(err);
+
+    delete midiin;
 
     return 0;
 }

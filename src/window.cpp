@@ -55,6 +55,7 @@ void close(GLFWwindow* w){
 void swap(GLFWwindow* w){
     glfwSwapBuffers(w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glfwPollEvents();
 }
 void depth_test(int on){
     if(on)

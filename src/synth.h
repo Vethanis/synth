@@ -49,7 +49,19 @@ struct Synth{
     voice_params params;
     inline void onNoteOn(unsigned char note, unsigned char velocity){
         for(auto& voice : voices){
-            if(voice.env.state == 2 && voice.env.cur_time > 0.15f){
+            if(voice.env.state == 2 && voice.env.cur_time >= params.env.durations[2]){
+                voice.onNoteOn(note, velocity, params);
+                return;
+            }
+        }
+        for(auto& voice : voices){
+            if(voice.env.state == 2 && voice.env.cur_time >= 0.5f * params.env.durations[2]){
+                voice.onNoteOn(note, velocity, params);
+                return;
+            }
+        }
+        for(auto& voice : voices){
+            if(voice.env.state == 2 && voice.env.cur_time >= 0.25f * params.env.durations[2]){
                 voice.onNoteOn(note, velocity, params);
                 return;
             }
