@@ -19,4 +19,4 @@ A WIP synthesizer using RtMidi, portaudio, and dear imgui.
 
 ## Video
 
-[![YouTube Video](http://img.youtube.com/vi/oImuQEYYJ4k/0.jpg)](https://youtu.be/oImuQEYYJ4k)
+[![YouTube Video](http://img.youtube.com/vi/NHvHID7aTVE/0.jpg)](https://youtu.be/NHvHID7aTVE)
