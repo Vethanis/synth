@@ -75,7 +75,7 @@ int main(){
     tcpa(err);
 
     PaStream* stream = nullptr; 
-    err = Pa_OpenDefaultStream(&stream, 0, 2, paFloat32, sample_rate, 16, on_audio, &synth);
+    err = Pa_OpenDefaultStream(&stream, 0, 2, paFloat32, sample_rate, 256, on_audio, &synth);
     tcpa(err);
 
     err = Pa_StartStream(stream);
@@ -87,7 +87,7 @@ int main(){
     int winflags = ImGuiWindowFlags_NoTitleBar |
         ImGuiWindowFlags_NoResize |
         ImGuiWindowFlags_NoMove;
-    int iwave = 2, imodwave = 1, imodratio = 0;
+    int iwave = 3, imodwave = 1, imodratio = 0;
     wave_func waves[] = { sine_wave, triangle_wave, square_wave, saw_wave };
     while(window::is_open(window)){
         ImGui_ImplGlfwGL3_NewFrame();
@@ -95,15 +95,29 @@ int main(){
         ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
         ImGui::Begin("Synth controls", nullptr, winflags);
         ImGui::SliderFloat("Volume", &synth.params.volume, 0.0f, 1.0f, nullptr, 2.0f);
-        ImGui::SliderInt("Wave", &iwave, 0, 3);
-        ImGui::SliderInt("Modulator Wave", &imodwave, 0, 3);
-        ImGui::SliderFloat("Unison Variance", &synth.params.unison_variance, 0.0f, 0.1f, "%0.5f", 2.0f);
-        ImGui::SliderFloat("Attack", &synth.params.env.durations[0], 0.01f, 2.0f, nullptr, 2.0f);
-        ImGui::SliderFloat("Decay", &synth.params.env.durations[1], 0.01f, 5.0f, nullptr, 2.0f);
-        ImGui::SliderFloat("Sustain", &synth.params.env.values[2], 0.0f, 1.0f, nullptr, 2.0f);
-        ImGui::SliderFloat("Release", &synth.params.env.durations[2], 0.01f, 5.0f, nullptr, 2.0f);
-        ImGui::SliderFloat("Modulation Amount", &synth.params.modulator_amt, 0.0f, 0.25f, "%0.5f", 2.0f);
-        ImGui::SliderInt("Modulator Ratio", &imodratio, 0, 20);
+        if(ImGui::CollapsingHeader("Oscillator Settings")){
+            ImGui::SliderInt("Wave", &iwave, 0, 3);
+            ImGui::SliderFloat("Unison Variance", &synth.params.unison_variance, 0.0f, 0.1f, "%0.5f", 2.0f);
+            ImGui::SliderInt("Modulator Wave", &imodwave, 0, 3);
+            ImGui::SliderFloat("Modulation Amount", &synth.params.modulator_amt, 0.0f, 0.25f, "%0.5f", 2.0f);
+            ImGui::SliderInt("Modulator Ratio", &imodratio, 0, 20);
+        }
+        if(ImGui::CollapsingHeader("Envelope Settings")){
+            ImGui::SliderFloat("Attack", &synth.params.env.durations[0], 0.01f, 2.0f, nullptr, 2.0f);
+            ImGui::SliderFloat("Decay", &synth.params.env.durations[1], 0.01f, 5.0f, nullptr, 2.0f);
+            ImGui::SliderFloat("Sustain", &synth.params.env.values[2], 0.0f, 1.0f, nullptr, 2.0f);
+            ImGui::SliderFloat("Release", &synth.params.env.durations[2], 0.01f, 5.0f, nullptr, 2.0f);
+        }
+        if(ImGui::CollapsingHeader("Filter Settings")){
+            ImGui::SliderFloat("Filter Cutoff", &synth.params.filter.F, 1.0f, 20000.0f, nullptr, 2.0f);
+            ImGui::SliderFloat("Filter Resonance", &synth.params.filter.Q, 0.01f, 10.0f);
+            ImGui::SliderInt("Filter Mode", &synth.params.filter.state, 0, 3);
+            ImGui::SliderFloat("Filter Env", &synth.params.filter.env_amt, 0.0f, 20000.0f, nullptr, 2.0f);
+            ImGui::SliderFloat("Filter Attack", &synth.params.filter_env.durations[0], 0.01f, 2.0f, nullptr, 2.0f);
+            ImGui::SliderFloat("Filter Decay", &synth.params.filter_env.durations[1], 0.01f, 5.0f, nullptr, 2.0f);
+            ImGui::SliderFloat("Filter Sustain", &synth.params.filter_env.values[2], 0.0f, 1.0f, nullptr, 2.0f);
+            ImGui::SliderFloat("Filter Release", &synth.params.filter_env.durations[2], 0.01f, 5.0f, nullptr, 2.0f);
+        }
         synth.params.func = waves[iwave];
         synth.params.mod_func = waves[imodwave];
         float modratio = 1.0f;
