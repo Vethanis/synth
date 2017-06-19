@@ -27,7 +27,7 @@ struct Voice{
         env.onNoteOn();
         filter_env.onNoteOn();
         osc::setNote(osc, note, par.unison_variance);
-        osc::setNote(mod, note, par.unison_variance);
+        osc::setNote(mod, note, 0.0f);
         for(auto& i : mod)
             i.dphase *= par.modulator_ratio;
     }
@@ -47,6 +47,34 @@ struct Voice{
         filter.step(osc_sam);
     }
     inline float sample(const voice_params& par){
+        return filter.output * env.output;
+    }
+};
+
+struct KarplusVoice{
+    KarplusOscillator osc;
+    adsr env, filter_env;
+    biquad_filter filter;
+    unsigned char active_note;
+    void onNoteOn(unsigned char note, unsigned char velocity, const voice_params& par){
+        active_note = note;
+        env.onNoteOn();
+        filter_env.onNoteOn();
+        osc.onNote(note);
+    }
+    void onNoteOff(){
+        active_note = 0;
+        env.onNoteOff();
+        filter_env.onNoteOff();
+    }
+    void step(const voice_params& par){
+        float osc_value = osc.onTick();
+        env.step(par.env);
+        filter_env.step(par.filter_env);
+        filter.update(par.filter, filter_env.output);
+        filter.step(osc_value);
+    }
+    float sample(const voice_params& par){
         return filter.output * env.output;
     }
 };

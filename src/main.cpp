@@ -107,6 +107,7 @@ int main(){
             ImGui::SliderFloat("Decay", &synth.params.env.durations[1], 0.01f, 5.0f, nullptr, 2.0f);
             ImGui::SliderFloat("Sustain", &synth.params.env.values[2], 0.0f, 1.0f, nullptr, 2.0f);
             ImGui::SliderFloat("Release", &synth.params.env.durations[2], 0.01f, 5.0f, nullptr, 2.0f);
+            ImGui::SliderFloat("Env Power", &synth.params.env.env_power, 0.1f, 10.0f);
         }
         if(ImGui::CollapsingHeader("Filter Settings")){
             ImGui::SliderFloat("Filter Cutoff", &synth.params.filter.F, 1.0f, 20000.0f, nullptr, 2.0f);
@@ -117,6 +118,7 @@ int main(){
             ImGui::SliderFloat("Filter Decay", &synth.params.filter_env.durations[1], 0.01f, 5.0f, nullptr, 2.0f);
             ImGui::SliderFloat("Filter Sustain", &synth.params.filter_env.values[2], 0.0f, 1.0f, nullptr, 2.0f);
             ImGui::SliderFloat("Filter Release", &synth.params.filter_env.durations[2], 0.01f, 5.0f, nullptr, 2.0f);
+            ImGui::SliderFloat("Filter Env Power", &synth.params.filter_env.env_power, 0.1f, 10.0f);
         }
         synth.params.func = waves[iwave];
         synth.params.mod_func = waves[imodwave];

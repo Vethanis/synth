@@ -16,11 +16,11 @@ struct biquad_filter_params{
     biquad_filter_params(){
         F = 1000.0f;
         Q = 0.5f;
-        env_amt = 100.0f;
+        env_amt = 1000.0f;
         state = BQ_LOWPASS;
     }
     inline float getCutoff(float env_value)const{
-        return F + env_amt * env_value;
+        return clamp(F + env_amt * env_value, 20.0f, 20000.0f);
     }
 };
 

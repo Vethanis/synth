@@ -4,6 +4,7 @@
 
 struct env_params{
     float durations[3] = {0.01f, 0.3f, 4.0f};
+    float env_power = 2.0f;
     float values[4] = {0.0f, 1.0f, 0.85f, 0.0f};
 };
 
@@ -40,6 +41,6 @@ struct adsr{
         float ntime = cur_time / p.durations[state];
         ntime = clamp(ntime, 0.0f, 1.0f);
         last_value = lerp(last_sustain_value, p.values[state+1], ntime);
-        output = last_value * last_value;
+        output = powf(last_value, p.env_power);
     }
 };
