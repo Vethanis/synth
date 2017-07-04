@@ -1,14 +1,16 @@
-# synth
+# audiostreaming
 
-A WIP synthesizer using RtMidi, portaudio, and dear imgui.
+A simple UDP audio streaming program
+
+## Usage
+
+./main.exe *ipv4 address* *port* *packet buffer length 0-7* *uploading or downloading u/d*
 
 ## Dependencies
 
 * C++11 compiler
 * CMake 3.1 or greater
-* RtMidi is included as well as binaries for portaudio (UNIX will want to install those libraries using a package manager)
-* Some sort of midi device
-* Headphones and ears
+* RtAudio is included
 
 ## Building
 
@@ -17,6 +19,3 @@ A WIP synthesizer using RtMidi, portaudio, and dear imgui.
 * cmake .. 
 * cd .. && cmake --build build --config Release
 
-## Video
-
-[![YouTube Video](http://img.youtube.com/vi/NHvHID7aTVE/0.jpg)](https://youtu.be/NHvHID7aTVE)
