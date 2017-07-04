@@ -4,7 +4,9 @@ A simple UDP audio streaming program
 
 ## Usage
 
-./main.exe *ipv4 address* *port* *packet buffer length 0-7* *uploading or downloading u/d*
+./main.exe *ipv4_address* *port* *packet_buffer_length(0-7)* *uploading/downloading(u/d)*
+
+ie. ./main.exe 127.0.0.1 8000 2 u
 
 ## Dependencies
 
