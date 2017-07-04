@@ -1,148 +1,195 @@
 #define _CRT_SECURE_NO_WARNINGS
+
 #include <cstdio>
-#include <csignal>
 #include <ctime>
-#include <random>
+#include <thread>
+#include "ints.h"
 
-#include "RtMidi.h"
-#include "portaudio.h"
-
-#include "synth.h"
-#include "window.h"
-#include "imgui.h"
-#include "imgui_impl_glfw_gl3.h"
-
-#define tcm(x){ try{ x } catch(RtMidiError& e){ puts("Had an exception:"); e.printMessage(); exit(1); } };
-#define tcpa(err){ if(err != paNoError){ puts(Pa_GetErrorText(err)); exit(1); } }
+#include "RtAudio.h"
+#include "socks.h"
 
 using namespace std;
 
-bool run = true;
-static void on_sigint(int signal){
-    run = false;
-}
+constexpr u32 networkBufferLen = 512;
+static_assert((networkBufferLen & (networkBufferLen - 1)) == 0);
+float networkBuffer[networkBufferLen] = {0};
+udp_socket sock;
+u32 networkIndex = 0;
+bool isUploading = false;
+bool netrun = true;
+bool needNetworkUpdate = false;
 
-static void on_message(double timestamp, vector<unsigned char>* pmessage, void* userdata){
-    if(!pmessage)
-        return;
-    auto& message = *pmessage;
-    Synth* synth = (Synth*)userdata;
-    if(message.size() == 3){
-        auto& action = message[0];
-        auto& note = message[1];
-        auto& velocity = message[2];
-        if(action == NoteOn){
-            synth->onNoteOn(note, velocity);
-        }
-        else if(action == NoteOff){
-            synth->onNoteOff(note);
-        }
+s32 audioCB(void* output, void* input, u32 numFrames, double streamTime, RtAudioStreamStatus status, void* data){
+    if(status){
+        puts("Stream overflow detected");
+        return 0;
     }
-}
 
-static int on_audio(const void* inbuf, void* outbuf, unsigned long num_frames, 
-    const PaStreamCallbackTimeInfo* timeinfo, PaStreamCallbackFlags flags, void* userdata){
-    
-    float* output = (float*)outbuf;
-    Synth* synth = (Synth*)userdata;
-    for(unsigned i = 0; i < num_frames; i++){
-        synth->onTick(output);
-        output += 2;
+    u64* bytes = (u64*)data;
+    u32 numFloats = u32((*bytes) / sizeof(float));
+    float* inBuf = (float*)input;
+    float* outBuf = (float*)output;
+
+    if(isUploading){
+        for(u32 bufIdx = 0; bufIdx < numFloats; bufIdx++){
+            networkBuffer[networkIndex++] = inBuf[bufIdx];
+            networkIndex &= (networkBufferLen - 1);
+        }
+        needNetworkUpdate = true;
+    }
+    else{
+        for(u32 bufIdx = 0; bufIdx < numFloats; bufIdx++){
+            outBuf[bufIdx] = networkBuffer[networkIndex++];
+            networkIndex &= (networkBufferLen - 1);
+        }
+        needNetworkUpdate = true;
     }
 
     return 0;
 }
 
+void networkCB(){
+    u32 len = networkBufferLen * sizeof(float);
+
+    if(isUploading){
+        while(netrun){
+            if(needNetworkUpdate){
+                s32 numBytes = sock.send(&networkBuffer[0], len);
+                needNetworkUpdate = false;
+                if(numBytes != len){
+                    printf("Sent %d bytes\n", numBytes);
+                }
+            }
+        }
+    }
+    else{
+        while(netrun){
+            if(needNetworkUpdate){
+                s32 numBytes = sock.recv(&networkBuffer[0], len);
+                needNetworkUpdate = false;
+                if(numBytes != len){
+                    printf("Received %d bytes\n", numBytes);
+                }
+            }
+        }
+    }
+}
+
 int main(){
-    srand((unsigned)time(0));
-    RtMidiIn* midiin;
-    tcm( midiin = new RtMidiIn(); )
+    char networkRawBuffer[1024] = {0};
+    char inputString[256] = {0};
 
-    if(midiin->getPortCount() < 1){
-        puts("No ports open, quitting.");
-        exit(1);
-    }
-    puts(midiin->getPortName(0).c_str());
-
-    midiin->openPort(0);
-    signal(SIGINT, on_sigint);
-
-    Synth synth;
-
-    midiin->setCallback(on_message, &synth);
-
-    auto err = Pa_Initialize();
-    tcpa(err);
-
-    PaStream* stream = nullptr; 
-    err = Pa_OpenDefaultStream(&stream, 0, 2, paFloat32, sample_rate, 256, on_audio, &synth);
-    tcpa(err);
-
-    err = Pa_StartStream(stream);
-    tcpa(err);
-
-    auto* window = window::init(800, 600, 3, 3, "Synth");
-
-    assert(ImGui_ImplGlfwGL3_Init(window, true));
-    int winflags = ImGuiWindowFlags_NoTitleBar |
-        ImGuiWindowFlags_NoResize |
-        ImGuiWindowFlags_NoMove;
-    int iwave = 3, imodwave = 1, imodratio = 0;
-    wave_func waves[] = { sine_wave, triangle_wave, square_wave, saw_wave };
-    while(window::is_open(window)){
-        ImGui_ImplGlfwGL3_NewFrame();
-        ImGui::SetNextWindowPosCenter();
-        ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
-        ImGui::Begin("Synth controls", nullptr, winflags);
-        ImGui::SliderFloat("Volume", &synth.params.volume, 0.0f, 1.0f, nullptr, 2.0f);
-        if(ImGui::CollapsingHeader("Oscillator Settings")){
-            ImGui::SliderInt("Wave", &iwave, 0, 3);
-            ImGui::SliderFloat("Unison Variance", &synth.params.unison_variance, 0.0f, 0.1f, "%0.5f", 2.0f);
-            ImGui::SliderInt("Modulator Wave", &imodwave, 0, 3);
-            ImGui::SliderFloat("Modulation Amount", &synth.params.modulator_amt, 0.0f, 0.25f, "%0.5f", 2.0f);
-            ImGui::SliderInt("Modulator Ratio", &imodratio, 0, 20);
-        }
-        if(ImGui::CollapsingHeader("Envelope Settings")){
-            ImGui::SliderFloat("Attack", &synth.params.env.durations[0], 0.01f, 2.0f, nullptr, 2.0f);
-            ImGui::SliderFloat("Decay", &synth.params.env.durations[1], 0.01f, 5.0f, nullptr, 2.0f);
-            ImGui::SliderFloat("Sustain", &synth.params.env.values[2], 0.0f, 1.0f, nullptr, 2.0f);
-            ImGui::SliderFloat("Release", &synth.params.env.durations[2], 0.01f, 5.0f, nullptr, 2.0f);
-            ImGui::SliderFloat("Env Power", &synth.params.env.env_power, 0.1f, 10.0f);
-        }
-        if(ImGui::CollapsingHeader("Filter Settings")){
-            ImGui::SliderFloat("Filter Cutoff", &synth.params.filter.F, 1.0f, 20000.0f, nullptr, 2.0f);
-            ImGui::SliderFloat("Filter Resonance", &synth.params.filter.Q, 0.01f, 10.0f);
-            ImGui::SliderInt("Filter Mode", &synth.params.filter.state, 0, 3);
-            ImGui::SliderFloat("Filter Env", &synth.params.filter.env_amt, 0.0f, 20000.0f, nullptr, 2.0f);
-            ImGui::SliderFloat("Filter Attack", &synth.params.filter_env.durations[0], 0.01f, 2.0f, nullptr, 2.0f);
-            ImGui::SliderFloat("Filter Decay", &synth.params.filter_env.durations[1], 0.01f, 5.0f, nullptr, 2.0f);
-            ImGui::SliderFloat("Filter Sustain", &synth.params.filter_env.values[2], 0.0f, 1.0f, nullptr, 2.0f);
-            ImGui::SliderFloat("Filter Release", &synth.params.filter_env.durations[2], 0.01f, 5.0f, nullptr, 2.0f);
-            ImGui::SliderFloat("Filter Env Power", &synth.params.filter_env.env_power, 0.1f, 10.0f);
-        }
-        synth.params.func = waves[iwave];
-        synth.params.mod_func = waves[imodwave];
-        float modratio = 1.0f;
-        for(int i = 10; i > imodratio; i--)
-            modratio *= 0.5f;
-        for(int i = 10; i < imodratio; i++)
-            modratio *= 2.0f;
-        synth.params.modulator_ratio = modratio;
-
-        ImGui::End();
-        ImGui::Render();
-        window::swap(window);
+    RtAudio adac;
+    if(adac.getDeviceCount() < 1){
+        puts("No audio devices found :(");
+        return 1;
     }
 
-    ImGui_ImplGlfwGL3_Shutdown();
+    // Network configuration
 
-    err = Pa_StopStream(stream);
-    tcpa(err);
+    s32 sockStatus = 0;
+    do{
+        s32 peerPort = 0;
+        puts("Uploading? y/n");
+        scanf("%s", inputString);
+        if(strstr(inputString, "y")){
+            puts("Uploading...");
+            isUploading = true;
+        }
+        puts("Enter peer IP");
+        scanf("%s", inputString);
+        puts("Enter peer port");
+        scanf("%i", &peerPort);
+        sockStatus = sock.connect(inputString, peerPort, !isUploading);
+        puts(sock.status_string(sockStatus));
+        puts("--------------------------------------------------------------");
+    }
+    while(sockStatus != SOCK_OK);
 
-    err = Pa_Terminate();
-    tcpa(err);
+    std::thread net_thread(networkCB);
 
-    delete midiin;
+    // Audio configuration
+
+    const u32 numDevices = adac.getDeviceCount();
+    constexpr u32 sample_rate = 44100;
+    u32 buffBytes, buffFrames = networkBufferLen;
+    RtAudio::StreamParameters inParams, outParams;
+
+    bool validConfig = false;
+    while(!validConfig){
+        RtAudio::DeviceInfo dInfo;
+        for(u32 i = 0; i < numDevices; i++){
+            dInfo = adac.getDeviceInfo(i);
+            
+            if(dInfo.probed){
+                printf("device id: %u\n", i);
+                puts(dInfo.name.c_str());
+                printf("output channels: %u\n", dInfo.outputChannels);
+                printf("input channels: %u\n", dInfo.inputChannels);
+                if(dInfo.isDefaultInput){
+                    puts("*default input device*");
+                    inParams.deviceId = i;
+                }
+                if(dInfo.isDefaultOutput){
+                    puts("*default output device*");
+                    outParams.deviceId = i;
+                }
+                puts("--------------------------------------------------------------");
+            }
+        }
+        
+        puts("Use default devices?");
+        scanf("%15s", inputString);
+        if(!strstr(inputString, "y")){
+            puts("Choose input device Id");
+            scanf("%u", &inParams.deviceId);
+            puts("Choose output device Id");
+            scanf("%u", &outParams.deviceId);
+            inParams.deviceId %= numDevices;
+            outParams.deviceId %= numDevices;
+        }
+
+        inParams.nChannels = adac.getDeviceInfo(inParams.deviceId).inputChannels;
+        outParams.nChannels = adac.getDeviceInfo(outParams.deviceId).outputChannels;
+
+        try{
+            adac.openStream(&outParams, &inParams, RTAUDIO_FLOAT32, sample_rate, &buffFrames, &audioCB, (void*)&buffBytes);
+            validConfig = true;
+        }
+        catch(RtAudioError& e){
+            puts("Open stream error: ");
+            e.printMessage();
+            validConfig = false;
+        }
+    }
+
+    // Audio stream begin
+
+    buffBytes = buffFrames * outParams.nChannels * sizeof(float);
+
+    try{
+        adac.startStream();
+    }
+    catch(RtAudioError& e){
+        puts("Start stream error: ");
+        e.printMessage();
+        if(adac.isStreamOpen()){
+            adac.closeStream();
+        }
+    }
+
+    puts("Running... enter q to quit");
+    scanf("%15s", inputString);
+    while(adac.isStreamOpen() && !strstr(inputString, "q")){
+        scanf("%15s", inputString);
+    }
+
+    puts("Quitting...");
+    netrun = false;
+
+    if(adac.isStreamOpen()){
+        adac.closeStream();
+    }
 
     return 0;
 }
