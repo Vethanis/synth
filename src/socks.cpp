@@ -48,7 +48,7 @@ struct udp_impl{
 
 #endif // PLATFORM SPECIFIC CODE
 
-static_assert(sizeof(udp_impl) == sizeof(udp_socket));
+static_assert(sizeof(udp_impl) >= sizeof(udp_socket));
 
 const char* sock_status_str[] = {
     "Socket OK",
