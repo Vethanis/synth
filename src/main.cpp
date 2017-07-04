@@ -10,12 +10,12 @@
 
 using namespace std;
 
-constexpr s32 bufferLen = 512;
-constexpr s32 numChannels = 2;
-constexpr s32 num_packets = 8;
-constexpr s32 packetLen = (numChannels * bufferLen) + 1;
-constexpr s32 packetBytes = packetLen * sizeof(s32);
-constexpr s32 bufferBytes = bufferLen * numChannels * sizeof(s32);
+constexpr s16 bufferLen = 512;
+constexpr s16 numChannels = 2;
+constexpr s16 num_packets = 8;
+constexpr s16 packetLen = (numChannels * bufferLen) + 1;
+constexpr s16 packetBytes = packetLen * sizeof(s16);
+constexpr s16 bufferBytes = bufferLen * numChannels * sizeof(s16);
 constexpr u32 sample_rate = 44100;
 static_assert((bufferLen & (bufferLen - 1)) == 0);
 bool isUploader = false;
@@ -24,12 +24,12 @@ udp_socket sock;
 RtAudio adac;
 
 struct Packets{
-    s32 ids[num_packets];
-    s32 data[num_packets][packetLen];
-    s32 recBuffer[packetLen];
-    s32 localIdx, netIdx;
+    s16 ids[num_packets];
+    s16 data[num_packets][packetLen];
+    s16 recBuffer[packetLen];
+    s16 localIdx, netIdx;
     Packets(){ memset(this, 0, sizeof(Packets)); }
-    s32 wrap(s32 id){ return id & (num_packets - 1); }
+    s16 wrap(s16 id){ return id & (num_packets - 1); }
     void advanceLocal(){ localIdx = wrap(localIdx+1); }
     void advanceNet(){ netIdx = wrap(netIdx+1); }
     void send(){
@@ -39,13 +39,13 @@ struct Packets{
     }
     void recv(){ 
         sock.recv(recBuffer, packetBytes); 
-        s32 peerId = recBuffer[0];
+        s16 peerId = recBuffer[0];
         memcpy(data[peerId], recBuffer, packetBytes);
         if(peerId == 1){
             localIdx = 0;
         }
     }
-    s32* currentBuffer(){ return &data[localIdx][1]; }
+    s16* currentBuffer(){ return &data[localIdx][1]; }
 };
 
 Packets s_packets;
@@ -91,7 +91,7 @@ int main(int argc, char** argv){
 
     // Network configuration
 
-    s32 sockStatus = 0;
+    s16 sockStatus = 0;
     isUploader = strstr(argv[3], "u") != nullptr;
     sockStatus = sock.connect(argv[1], atoi(argv[2]), !isUploader);
     puts(sock.status_string(sockStatus));
@@ -122,7 +122,7 @@ int main(int argc, char** argv){
 
     try{
         u32 buflen = bufferLen;
-        adac.openStream(&outParams, &inParams, RTAUDIO_SINT32, sample_rate, &buflen, &audioCB, nullptr);
+        adac.openStream(&outParams, &inParams, RTAUDIO_SINT16, sample_rate, &buflen, &audioCB, nullptr);
     }
     catch(RtAudioError& e){
         puts("Open stream error: ");
