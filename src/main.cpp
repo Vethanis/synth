@@ -17,6 +17,7 @@ constexpr s16 packetLen = (numChannels * bufferLen) + 1;
 constexpr s16 packetBytes = packetLen * sizeof(s16);
 constexpr s16 bufferBytes = bufferLen * numChannels * sizeof(s16);
 constexpr u32 sample_rate = 44100;
+static s16 packetLead = 1;
 static_assert((bufferLen & (bufferLen - 1)) == 0);
 bool isUploader = false;
 bool netrun = true;
@@ -41,7 +42,7 @@ struct Packets{
         sock.recv(recBuffer, packetBytes); 
         s16 peerId = recBuffer[0];
         memcpy(data[peerId], recBuffer, packetBytes);
-        if(peerId == 1){
+        if(peerId == packetLead){
             localIdx = 0;
         }
     }
@@ -79,8 +80,8 @@ void sig_handler(int sig){
 }
 
 int main(int argc, char** argv){
-    if(argc != 4){
-        puts("Usage: program <ipv4 address> <port> <u/d>");
+    if(argc != 5){
+        puts("Usage: program <ipv4 address> <port> <latency 0-7> <u/d>");
         return 1;
     }
 
@@ -90,9 +91,9 @@ int main(int argc, char** argv){
     }
 
     // Network configuration
-
+    packetLead = atoi(argv[3]) % num_packets;
     s16 sockStatus = 0;
-    isUploader = strstr(argv[3], "u") != nullptr;
+    isUploader = strstr(argv[4], "u") != nullptr;
     sockStatus = sock.connect(argv[1], atoi(argv[2]), !isUploader);
     puts(sock.status_string(sockStatus));
     if(sockStatus != SOCK_OK){
