@@ -25,7 +25,6 @@ udp_socket sock;
 RtAudio adac;
 
 struct Packets{
-    s16 ids[num_packets];
     s16 data[num_packets][packetLen];
     s16 recBuffer[packetLen];
     s16 localIdx, netIdx;
