@@ -1,7 +1,6 @@
 #pragma once
 
 #include "constants.h"
-#include <vector>
 
 struct env_params
 {
