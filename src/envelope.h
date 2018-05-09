@@ -1,46 +1,59 @@
 #pragma once
 
 #include "constants.h"
+#include <vector>
 
-struct env_params{
-    float durations[3] = {0.01f, 0.3f, 4.0f};
-    float env_power = 2.0f;
-    float values[4] = {0.0f, 1.0f, 0.85f, 0.0f};
+struct env_params
+{
+    float attack = 0.001f;
+    float decay = 0.9f;
+    float attack_power = 2.0f;
+    float decay_power = 2.0f;
+    bool sustain = true;
 };
 
-struct adsr{
-    int state;
-    float cur_time;
-    float last_value;
-    float last_sustain_value;
-    float output;
-    adsr(){
-        state = 2;
-        cur_time = 60.0f;
-        last_value = 0.0f;
-        last_sustain_value = 0.0f;
-        output = 0.0f;
-    }
-    inline void onNoteOn(){
-        state = 0;
+struct envelope
+{
+    float cur_time = 0.0f;
+    float gate_off_value = 0.0f;
+    float value = 0.0f;
+    bool gate = false;
+
+    void onNoteOn()
+    {
         cur_time = 0.0f;
-        last_sustain_value = 0.0f;
+        gate = true;
     }
-    inline void onNoteOff(){
-        last_sustain_value = last_value;
-        state = 2;
+    void onNoteOff()
+    {
+        gate_off_value = value;
         cur_time = 0.0f;
+        gate = false;
     }
-    inline void step(const env_params& p){        
-        cur_time += inv_sample_rate;
-        if(!state && cur_time > p.durations[state]){
-            state++;
-            cur_time = 0.0f;
-            last_sustain_value = 1.0f;
+    void onTick(const env_params& p)
+    {
+        cur_time += inv_sample_rate;      
+
+        if(!p.sustain && gate && cur_time > p.attack)
+        {
+            onNoteOff();
         }
-        float ntime = cur_time / p.durations[state];
-        ntime = clamp(ntime, 0.0f, 1.0f);
-        last_value = lerp(last_sustain_value, p.values[state+1], ntime);
-        output = powf(last_value, p.env_power);
+
+        if(gate)
+        {
+            value = clamp(cur_time / p.attack, 0.0f, 1.0f);
+        }
+        else
+        {
+            const float alpha = clamp(cur_time / p.decay, 0.0f, 1.0f);
+            value = lerp(gate_off_value, 0.0f, alpha);
+        }
+    }
+    float sample(const env_params& p) const 
+    {
+        if(gate)
+            return powf(value, p.attack_power);
+
+        return powf(value, p.decay_power);
     }
 };

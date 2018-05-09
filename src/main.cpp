@@ -18,47 +18,60 @@
 using namespace std;
 
 bool run = true;
-static void on_sigint(int signal){
+void on_sigint(int signal)
+{
     run = false;
 }
 
-static void on_message(double timestamp, vector<unsigned char>* pmessage, void* userdata){
+void on_message(double timestamp, vector<unsigned char>* pmessage, void* userdata)
+{
     if(!pmessage)
         return;
-    auto& message = *pmessage;
-    Synth* synth = (Synth*)userdata;
-    if(message.size() == 3){
-        auto& action = message[0];
-        auto& note = message[1];
-        auto& velocity = message[2];
-        if(action == NoteOn){
-            synth->onNoteOn(note, velocity);
+    
+    const auto& message = *pmessage;
+    Synth& synth = *(Synth*)userdata;
+
+    if(message.size() == 3)
+    {
+        const auto action = message[0];
+        const auto note = message[1];
+        const auto velocity = message[2];
+        if(action == NoteOn)
+        {
+            synth.onNoteOn(note, velocity);
         }
-        else if(action == NoteOff){
-            synth->onNoteOff(note);
+        else if(action == NoteOff)
+        {
+            synth.onNoteOff(note);
         }
     }
 }
 
-static int on_audio(const void* inbuf, void* outbuf, unsigned long num_frames, 
-    const PaStreamCallbackTimeInfo* timeinfo, PaStreamCallbackFlags flags, void* userdata){
-    
+int on_audio(const void* inbuf, void* outbuf, unsigned long num_frames, 
+    const PaStreamCallbackTimeInfo* timeinfo, PaStreamCallbackFlags flags, void* userdata)
+{
     float* output = (float*)outbuf;
     Synth* synth = (Synth*)userdata;
-    for(unsigned i = 0; i < num_frames; i++){
-        synth->onTick(output);
+    for(unsigned i = 0; i < num_frames; i++)
+    {
+        synth->onTick();
+        synth->sample(output);
         output += 2;
     }
 
     return 0;
 }
 
-int main(){
-    srand((unsigned)time(0));
+int main()
+{
+    g_randSeed = (unsigned)time(nullptr);
+    srand(g_randSeed);
+
     RtMidiIn* midiin;
     tcm( midiin = new RtMidiIn(); )
 
-    if(midiin->getPortCount() < 1){
+    if(midiin->getPortCount() < 1)
+    {
         puts("No ports open, quitting.");
         exit(1);
     }
@@ -84,50 +97,65 @@ int main(){
     auto* window = window::init(800, 600, 3, 3, "Synth");
 
     assert(ImGui_ImplGlfwGL3_Init(window, true));
+
     int winflags = ImGuiWindowFlags_NoTitleBar |
         ImGuiWindowFlags_NoResize |
         ImGuiWindowFlags_NoMove;
     int iwave = 3, imodwave = 1, imodratio = 0;
-    wave_func waves[] = { sine_wave, triangle_wave, square_wave, saw_wave };
-    while(window::is_open(window)){
+    wave_func waves[] = { sine_wave, triangle_wave, square_wave, saw_wave, noise_wave };
+
+    while(window::is_open(window) && run)
+    {
         ImGui_ImplGlfwGL3_NewFrame();
         ImGui::SetNextWindowPosCenter();
         ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
         ImGui::Begin("Synth controls", nullptr, winflags);
         ImGui::SliderFloat("Volume", &synth.params.volume, 0.0f, 1.0f, nullptr, 2.0f);
-        if(ImGui::CollapsingHeader("Oscillator Settings")){
-            ImGui::SliderInt("Wave", &iwave, 0, 3);
+
+        if(ImGui::CollapsingHeader("Oscillator Settings"))
+        {
+            ImGui::SliderInt("Wave", &iwave, 0, count(waves) - 1);
             ImGui::SliderFloat("Unison Variance", &synth.params.unison_variance, 0.0f, 0.1f, "%0.5f", 2.0f);
-            ImGui::SliderInt("Modulator Wave", &imodwave, 0, 3);
+            ImGui::SliderInt("Modulator Wave", &imodwave, 0, count(waves) - 1);
             ImGui::SliderFloat("Modulation Amount", &synth.params.modulator_amt, 0.0f, 0.25f, "%0.5f", 2.0f);
             ImGui::SliderInt("Modulator Ratio", &imodratio, 0, 20);
         }
-        if(ImGui::CollapsingHeader("Envelope Settings")){
-            ImGui::SliderFloat("Attack", &synth.params.env.durations[0], 0.01f, 2.0f, nullptr, 2.0f);
-            ImGui::SliderFloat("Decay", &synth.params.env.durations[1], 0.01f, 5.0f, nullptr, 2.0f);
-            ImGui::SliderFloat("Sustain", &synth.params.env.values[2], 0.0f, 1.0f, nullptr, 2.0f);
-            ImGui::SliderFloat("Release", &synth.params.env.durations[2], 0.01f, 5.0f, nullptr, 2.0f);
-            ImGui::SliderFloat("Env Power", &synth.params.env.env_power, 0.1f, 10.0f);
+
+        auto DisplayEnvelope = [](env_params& p)
+        {
+            ImGui::SliderFloat("Attack", &p.attack, 0.001f, 2.0f, nullptr, 2.0f);
+            ImGui::SliderFloat("Decay", &p.decay, 0.01f, 5.0f, nullptr, 2.0f);
+            ImGui::SliderFloat("Attack Power", &p.attack_power, 0.1f, 4.0f, nullptr, 2.0f);
+            ImGui::SliderFloat("Decay Power", &p.decay_power, 0.1f, 4.0f, nullptr, 2.0f);
+            ImGui::Checkbox("Sustain", &p.sustain);
+        };
+
+        if(ImGui::CollapsingHeader("Envelope Settings"))
+        {
+            DisplayEnvelope(synth.params.env);
         }
-        if(ImGui::CollapsingHeader("Filter Settings")){
+
+        if(ImGui::CollapsingHeader("Filter Settings"))
+        {
             ImGui::SliderFloat("Filter Cutoff", &synth.params.filter.F, 1.0f, 20000.0f, nullptr, 2.0f);
             ImGui::SliderFloat("Filter Resonance", &synth.params.filter.Q, 0.01f, 10.0f);
-            ImGui::SliderInt("Filter Mode", &synth.params.filter.state, 0, 3);
+            ImGui::SliderInt("Filter Mode", (int*)&synth.params.filter.type, 0, BQ_COUNT - 1);
             ImGui::SliderFloat("Filter Env", &synth.params.filter.env_amt, 0.0f, 20000.0f, nullptr, 2.0f);
-            ImGui::SliderFloat("Filter Attack", &synth.params.filter_env.durations[0], 0.01f, 2.0f, nullptr, 2.0f);
-            ImGui::SliderFloat("Filter Decay", &synth.params.filter_env.durations[1], 0.01f, 5.0f, nullptr, 2.0f);
-            ImGui::SliderFloat("Filter Sustain", &synth.params.filter_env.values[2], 0.0f, 1.0f, nullptr, 2.0f);
-            ImGui::SliderFloat("Filter Release", &synth.params.filter_env.durations[2], 0.01f, 5.0f, nullptr, 2.0f);
-            ImGui::SliderFloat("Filter Env Power", &synth.params.filter_env.env_power, 0.1f, 10.0f);
+            DisplayEnvelope(synth.params.filter_env);
         }
-        synth.params.func = waves[iwave];
-        synth.params.mod_func = waves[imodwave];
-        float modratio = 1.0f;
-        for(int i = 10; i > imodratio; i--)
-            modratio *= 0.5f;
-        for(int i = 10; i < imodratio; i++)
-            modratio *= 2.0f;
-        synth.params.modulator_ratio = modratio;
+
+        {
+            synth.params.func = waves[iwave];
+            synth.params.mod_func = waves[imodwave];
+
+            float modratio = 1.0f;
+            for(int i = 10; i > imodratio; i--)
+                modratio *= 0.5f;
+            for(int i = 10; i < imodratio; i++)
+                modratio *= 2.0f;
+
+            synth.params.modulator_ratio = modratio;
+        }
 
         ImGui::End();
         ImGui::Render();
