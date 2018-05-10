@@ -103,8 +103,7 @@ int main()
     int winflags = ImGuiWindowFlags_NoTitleBar |
         ImGuiWindowFlags_NoResize |
         ImGuiWindowFlags_NoMove;
-    int iwave = 3, imodwave = 3, imodratio = 9;
-    wave_func waves[] = { sine_wave, triangle_wave, square_wave, saw_wave, noise_wave };
+    int imodratio = 9;
 
     while(window::is_open(window) && run)
     {
@@ -112,14 +111,14 @@ int main()
         ImGui::SetNextWindowPosCenter();
         ImGui::SetNextWindowSize(io.DisplaySize);
         ImGui::Begin("Synth controls", nullptr, winflags);
-        ImGui::SliderFloat("Volume", &synth.params.volume, 0.0f, 1.0f, nullptr, 2.0f);
+        ImGui::SliderFloat("Volume", &synth.params.volume, 0.0f, 2.0f, nullptr, 2.0f);
 
         {
             ImGui::Separator();
             ImGui::Text("Oscillator Settings");
-            ImGui::SliderInt("Wave", &iwave, 0, count(waves) - 1);
+            ImGui::SliderFloat("Wave", &synth.params.func, eTriangleWave, eNoiseWave);
             ImGui::SliderFloat("Unison Variance", &synth.params.unison_variance, 0.0f, 0.1f, "%0.5f", 2.0f);
-            ImGui::SliderInt("Modulator Wave", &imodwave, 0, count(waves) - 1);
+            ImGui::SliderFloat("Modulator Wave", &synth.params.mod_func, eTriangleWave, eNoiseWave);
             ImGui::SliderFloat("Modulation Amount", &synth.params.modulator_amt, 0.0f, 0.25f, "%0.5f", 2.0f);
             ImGui::SliderInt("Modulator Ratio", &imodratio, 0, 20);
         }
@@ -127,7 +126,7 @@ int main()
         auto DisplayEnvelope = [](env_params& p)
         {
             ImGui::ID id(&p);
-            ImGui::SliderFloat("Attack", &p.attack, 0.001f, 2.0f, nullptr, 2.0f);
+            ImGui::SliderFloat("Attack", &p.attack, 0.01f, 5.0f, nullptr, 2.0f);
             ImGui::SliderFloat("Decay", &p.decay, 0.01f, 5.0f, nullptr, 2.0f);
             ImGui::SliderFloat("Attack Power", &p.attack_power, 0.1f, 4.0f, nullptr, 2.0f);
             ImGui::SliderFloat("Decay Power", &p.decay_power, 0.1f, 4.0f, nullptr, 2.0f);
@@ -153,9 +152,6 @@ int main()
         }
 
         {
-            synth.params.func = waves[iwave];
-            synth.params.mod_func = waves[imodwave];
-
             float modratio = 1.0f;
             for(int i = 10; i > imodratio; i--)
                 modratio *= 0.5f;

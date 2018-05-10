@@ -9,14 +9,13 @@
 #define max(a, b)((a) > (b) ? (a) : (b))
 #define clamp(x, a, b)(min(max(x, a), b))
 #define lerp(a, b, alpha)( (1.0f - (alpha)) * (a) + (alpha) * (b) )
-#define fract(a)( (a) - float(int((a))) )
+#define fract(a)( (a) - floorf(a) )
 #define count(x) ( sizeof(x) / sizeof((x)[0]) )
 
 constexpr int sample_rate = 44100;
 constexpr float inv_sample_rate = 1.0f / sample_rate;
 constexpr float tau = 6.2831853f;
 constexpr float pi = tau / 2.0f;
-typedef float (*wave_func)(float);
 
 enum MIDI_Action : unsigned char
 {

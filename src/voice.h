@@ -35,16 +35,16 @@ namespace osc
             i.phase = fmod(i.phase + i.dphase, tau);
     }
     template<typename T>
-    inline float sample(T& oscs, wave_func func)
+    inline float sample(T& oscs, float wt)
     {
         float value = 0.0f;
         for(auto& i : oscs)
-            value += func(i.phase);
+            value += meta_wave(wt, i.phase);
 
         return value;
     }
     template<typename T>
-    inline float multiSample(T& oscs, wave_func func, int sample_count)
+    inline float multiSample(T& oscs, float wt, int sample_count)
     {
         float value = 0.0f;
         for(auto& osc : oscs)
@@ -53,7 +53,7 @@ namespace osc
             for(int i = 0; i < sample_count; ++i)
             {
                 osc.phase = fmod(osc.phase + dphase, tau);
-                value += func(osc.phase);
+                value += meta_wave(wt, osc.phase);
             }
         }
         return value / float(sample_count);
