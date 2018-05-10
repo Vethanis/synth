@@ -31,7 +31,6 @@ GLFWwindow* init(int width, int height, int major_ver, int minor_ver, const char
     }
     glfwMakeContextCurrent(window);
     glewExperimental=1;
-    glViewport(0, 0, width, height);
     if(glewInit() != GLEW_OK){
         puts("Failed to init glew");
         glfwTerminate();
@@ -40,6 +39,7 @@ GLFWwindow* init(int width, int height, int major_ver, int minor_ver, const char
     glGetError();    // invalid enumerant shows up here, just part of glew being itself.
     glfwSwapInterval(1);
     glfwSetWindowSizeCallback(window, onWindowResize);
+    glViewport(0, 0, width, height);
     return window;
 }
 void destroy(GLFWwindow* w){

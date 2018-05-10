@@ -13,9 +13,9 @@ enum eFilterType : int
 
 struct biquad_filter_params
 {
-    float F = 1000.0f;
+    float F = 1.0f;
     float Q = 0.5f;
-    float env_amt = 1000.0f;
+    float env_amt = 4000.0f;
     eFilterType type = BQ_LOWPASS;
 
     float getCutoff(float env_value) const

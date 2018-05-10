@@ -22,3 +22,7 @@ if [[ $1 == "Debug" ]]; then
 else
     cmake --build build --config Release
 fi
+
+if [ $? == 0 ]; then
+    ./bin/Release/main.exe
+fi

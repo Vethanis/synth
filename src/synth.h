@@ -10,9 +10,9 @@ struct voice_params
     env_params filter_env;
     wave_func func = saw_wave;
     wave_func mod_func = saw_wave;
-    float unison_variance=0.0004f;
+    float unison_variance=0.005f;
     float modulator_ratio=0.5f;
-    float modulator_amt=0.0002f;
+    float modulator_amt=0.005f;
     float volume=0.75f;
 };
 
@@ -46,13 +46,12 @@ struct Voice
     void onTick(const voice_params& par)
     {
         duration += inv_sample_rate;
-        osc::step(osc);
-        osc::step(mod);
-        osc::phaseModulate(osc, osc::sample(mod, par.mod_func) * par.modulator_amt);
-        const float osc_sam = osc::sample(osc, par.func) / (float)count(osc);
+        const float mod_value = osc::multiSample(mod, par.mod_func, 16);
+        osc::phaseModulate(osc, mod_value * par.modulator_amt);
+        const float osc_value = osc::multiSample(osc, par.func, 16) / float(count(osc));
         env.onTick(par.env);
         filter_env.onTick(par.filter_env);
-        filter.onTick(par.filter, filter_env.sample(par.filter_env), osc_sam);
+        filter.onTick(par.filter, filter_env.sample(par.filter_env), osc_value);
     }
     float sample(const voice_params& par) const 
     {
@@ -102,6 +101,14 @@ struct Synth
             value += i.sample(params);
         }
         value *= params.volume;
+        if(value > 0.0f)
+        {
+            value = value / (value + 1.0f);
+        }
+        else
+        {
+            value = value / (-value + 1.0f);
+        }
         buff[0] = value;
         buff[1] = -value;
     }

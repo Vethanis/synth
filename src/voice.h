@@ -44,6 +44,21 @@ namespace osc
         return value;
     }
     template<typename T>
+    inline float multiSample(T& oscs, wave_func func, int sample_count)
+    {
+        float value = 0.0f;
+        for(auto& osc : oscs)
+        {
+            const float dphase = osc.dphase / float(sample_count);
+            for(int i = 0; i < sample_count; ++i)
+            {
+                osc.phase = fmod(osc.phase + dphase, tau);
+                value += func(osc.phase);
+            }
+        }
+        return value / float(sample_count);
+    }
+    template<typename T>
     inline void phaseModulate(T& oscs, float amt)
     {        
         for(auto& i : oscs)

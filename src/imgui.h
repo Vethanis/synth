@@ -241,6 +241,18 @@ namespace ImGui
     IMGUI_API ImGuiID       GetID(const char* str_id_begin, const char* str_id_end);
     IMGUI_API ImGuiID       GetID(const void* ptr_id);
 
+    struct ID
+    {
+        ID(const void* p)
+        {
+            PushID(p);
+        }
+        ~ID()
+        {
+            PopID();
+        }
+    };
+
     // Widgets
     IMGUI_API void          Text(const char* fmt, ...) IM_PRINTFARGS(1);
     IMGUI_API void          TextV(const char* fmt, va_list args);

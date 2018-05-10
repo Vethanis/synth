@@ -94,26 +94,29 @@ int main()
     err = Pa_StartStream(stream);
     tcpa(err);
 
-    auto* window = window::init(800, 600, 3, 3, "Synth");
+    auto* window = window::init(900, 900, 3, 3, "Synth");
 
     assert(ImGui_ImplGlfwGL3_Init(window, true));
+    ImGuiIO& io = ImGui::GetIO();
+    io.FontGlobalScale = 2.0f;
 
     int winflags = ImGuiWindowFlags_NoTitleBar |
         ImGuiWindowFlags_NoResize |
         ImGuiWindowFlags_NoMove;
-    int iwave = 3, imodwave = 1, imodratio = 0;
+    int iwave = 3, imodwave = 3, imodratio = 9;
     wave_func waves[] = { sine_wave, triangle_wave, square_wave, saw_wave, noise_wave };
 
     while(window::is_open(window) && run)
     {
         ImGui_ImplGlfwGL3_NewFrame();
         ImGui::SetNextWindowPosCenter();
-        ImGui::SetNextWindowSize(ImGui::GetIO().DisplaySize);
+        ImGui::SetNextWindowSize(io.DisplaySize);
         ImGui::Begin("Synth controls", nullptr, winflags);
         ImGui::SliderFloat("Volume", &synth.params.volume, 0.0f, 1.0f, nullptr, 2.0f);
 
-        if(ImGui::CollapsingHeader("Oscillator Settings"))
         {
+            ImGui::Separator();
+            ImGui::Text("Oscillator Settings");
             ImGui::SliderInt("Wave", &iwave, 0, count(waves) - 1);
             ImGui::SliderFloat("Unison Variance", &synth.params.unison_variance, 0.0f, 0.1f, "%0.5f", 2.0f);
             ImGui::SliderInt("Modulator Wave", &imodwave, 0, count(waves) - 1);
@@ -123,6 +126,7 @@ int main()
 
         auto DisplayEnvelope = [](env_params& p)
         {
+            ImGui::ID id(&p);
             ImGui::SliderFloat("Attack", &p.attack, 0.001f, 2.0f, nullptr, 2.0f);
             ImGui::SliderFloat("Decay", &p.decay, 0.01f, 5.0f, nullptr, 2.0f);
             ImGui::SliderFloat("Attack Power", &p.attack_power, 0.1f, 4.0f, nullptr, 2.0f);
@@ -130,17 +134,21 @@ int main()
             ImGui::Checkbox("Sustain", &p.sustain);
         };
 
-        if(ImGui::CollapsingHeader("Envelope Settings"))
         {
+            ImGui::Separator();
+            ImGui::Text("VCA Settings");
             DisplayEnvelope(synth.params.env);
         }
 
-        if(ImGui::CollapsingHeader("Filter Settings"))
         {
+            ImGui::Separator();
+            ImGui::Text("Filter Settings");
             ImGui::SliderFloat("Filter Cutoff", &synth.params.filter.F, 1.0f, 20000.0f, nullptr, 2.0f);
             ImGui::SliderFloat("Filter Resonance", &synth.params.filter.Q, 0.01f, 10.0f);
             ImGui::SliderInt("Filter Mode", (int*)&synth.params.filter.type, 0, BQ_COUNT - 1);
             ImGui::SliderFloat("Filter Env", &synth.params.filter.env_amt, 0.0f, 20000.0f, nullptr, 2.0f);
+            ImGui::Separator();
+            ImGui::Text("Filter Envelope Settings");
             DisplayEnvelope(synth.params.filter_env);
         }
 

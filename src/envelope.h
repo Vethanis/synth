@@ -4,8 +4,8 @@
 
 struct env_params
 {
-    float attack = 0.001f;
-    float decay = 0.9f;
+    float attack = 0.01f;
+    float decay = 1.9f;
     float attack_power = 2.0f;
     float decay_power = 2.0f;
     bool sustain = true;
